@@ -33,13 +33,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "F_PATH";
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 0;
-    // Stores names of traversed directories
     ArrayList<String> str = new ArrayList<>();
     private ListView listView;
     private GridView gridView;
     private FloatingActionButton newFolderButton;
     private ArrayList<File> myFolders = new ArrayList<>();
-    // Check if the first level of the directory structure is the one showing
     private Boolean firstLvl = true;
     private Item[] fileList;
     private File path = new File(Environment.getExternalStorageDirectory() + "");
