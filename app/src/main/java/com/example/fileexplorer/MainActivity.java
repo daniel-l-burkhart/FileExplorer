@@ -29,6 +29,11 @@ import java.util.ArrayList;
 
 import static android.widget.Toast.makeText;
 
+/**
+ * Main Activity class that runs app
+ *
+ * @author Daniel Burkhart
+ */
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "F_PATH";
@@ -45,6 +50,11 @@ public class MainActivity extends AppCompatActivity {
     private String chosenFile;
     private ListAdapter adapter;
 
+    /**
+     * On create method that begins app
+     *
+     * @param savedInstanceState Saved instance state
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -71,6 +81,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    /**
+     * On start method that occurs after onCreate
+     */
     @Override
     protected void onStart() {
         super.onStart();
@@ -169,7 +182,13 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
+    /**
+     * Requests permissions for reading and writing storage directory
+     *
+     * @param requestCode  The request code
+     * @param permissions  The array of permissions
+     * @param grantResults The results if the user granted or didn't grant permission
+     */
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String permissions[], @NonNull int[] grantResults) {
@@ -190,7 +209,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
+    /**
+     * Loads files and sets up view in current directory
+     */
     private void loadFileList() {
 
         boolean pass = false;
@@ -281,6 +302,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Opens and sets up view of current directory
+     *
+     * @param sel The current directory
+     */
     private void openDirectory(File sel) {
         firstLvl = false;
 
@@ -295,6 +321,11 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, path.getAbsolutePath());
     }
 
+    /**
+     * Gets all the folders currently in system for moving files
+     *
+     * @param root The base folder path
+     */
     private void getFolders(File root) {
 
         File[] list = root.listFiles();
@@ -310,6 +341,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Makes a folder in current directory
+     */
     private void makeFolder() {
 
         // Dialog dialog
@@ -359,6 +393,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Deletes file or folder
+     */
     private void deleteFileFolder() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
         alert.setTitle("Delete");
@@ -408,6 +445,11 @@ public class MainActivity extends AppCompatActivity {
         alert.show();
     }
 
+    /**
+     * Shows the options that can be performed on folder
+     *
+     * @param sel Current file
+     */
     private void showFolderOptions(File sel) {
 
         final File folder = sel;
@@ -446,9 +488,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Shows the options to be performed on file.
+     */
     private void showFileOptions() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
-        //set message, title, and icon
         alert.setTitle("File Options");
         alert.setMessage("You can move or delete files");
         alert.setIcon(R.drawable.file_icon);
