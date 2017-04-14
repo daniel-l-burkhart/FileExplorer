@@ -17,7 +17,8 @@
         <ListView
             android:id="@+id/listView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:fontFamily="Helvetica" />
 
         <android.support.design.widget.FloatingActionButton
             android:id="@+id/newFolderButton"
@@ -33,7 +34,9 @@
             android:id="@+id/gridView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:fontFamily="Helvetica"
             android:visibility="invisible" />
+
 
     </FrameLayout>
 

@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
@@ -27,6 +28,11 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 
+import IO.FileOperations;
+import model.FolderItem;
+import model.FolderItemList;
+import model.Item;
+
 import static android.widget.Toast.makeText;
 
 /**
@@ -37,18 +43,26 @@ import static android.widget.Toast.makeText;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "F_PATH";
-    private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 0;
-    ArrayList<String> str = new ArrayList<>();
+    private static final int MY_PERMISSIONS_REQUEST = 0;
+
     private ListView listView;
+    private ListAdapter adapter;
     private GridView gridView;
     private FloatingActionButton newFolderButton;
+    private Typeface tf;
+
+    private ArrayList<String> str = new ArrayList<>();
     private ArrayList<File> myFolders = new ArrayList<>();
+    private FolderItemList myFolderItems = new FolderItemList();
     private Boolean firstLvl = true;
     private Item[] fileList;
     private File path = new File(Environment.getExternalStorageDirectory() + "");
     private File basePath = new File(Environment.getExternalStorageDirectory() + "");
+
     private String chosenFile;
-    private ListAdapter adapter;
+    private FileOperations fileOps;
+    private boolean wasMoveClicked;
+    private boolean wasCopyClicked;
 
     /**
      * On create method that begins app
@@ -57,129 +71,29 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
+
+        this.fileOps = new FileOperations();
         setContentView(R.layout.activity_main);
 
         this.listView = (ListView) findViewById(R.id.listView);
         this.gridView = (GridView) findViewById(R.id.gridView);
-
         this.newFolderButton = (FloatingActionButton) findViewById(R.id.newFolderButton);
+        this.tf = Typeface.createFromAsset(getAssets(), "helvetica.ttf");
 
-        // Here, thisActivity is the current activity
         if (ContextCompat.checkSelfPermission(getApplicationContext(),
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(getApplicationContext(),
                 Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 
-            // No explanation needed, we can request the permission.
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+            String[] permissionsWanted = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE};
+            ActivityCompat.requestPermissions(MainActivity.this, permissionsWanted, MY_PERMISSIONS_REQUEST);
 
         } else {
             onStart();
             Log.d(TAG, path.getAbsolutePath());
         }
-    }
-
-
-    /**
-     * On start method that occurs after onCreate
-     */
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        loadFileList();
-        this.myFolders = new ArrayList<>();
-        getFolders(basePath);
-
-        this.listView.setAdapter(adapter);
-        this.listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                chosenFile = fileList[position].file;
-
-                File sel = new File(path + "/" + chosenFile);
-
-                if (sel.isDirectory()) {
-
-                    showFolderOptions(sel);
-
-                } else if (chosenFile.equalsIgnoreCase("up") && !sel.exists()) {
-
-                    String s = str.remove(str.size() - 1);
-
-                    path = new File(path.toString().substring(0,
-                            path.toString().lastIndexOf(s)));
-                    fileList = null;
-
-                    if (str.isEmpty()) {
-                        firstLvl = true;
-                    }
-                    loadFileList();
-
-                    onRestart();
-                    onStart();
-                    Log.d(TAG, path.getAbsolutePath());
-
-                } else {
-
-
-                    showFileOptions();
-
-                    loadFileList();
-
-                    onRestart();
-                    onStart();
-                    Log.d(TAG, path.getAbsolutePath());
-
-                }
-
-            }
-        });
-
-
-        ArrayAdapter<File> folderAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_single_choice, this.myFolders);
-
-
-        this.gridView.setAdapter(folderAdapter);
-
-        this.gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-
-
-                File from = new File(path + File.separator + chosenFile);
-                File to = new File(myFolders.get(position) + File.separator + chosenFile);
-                boolean pass = from.renameTo(to);
-
-                if (pass) {
-                    gridView.setVisibility(View.GONE);
-                    listView.setVisibility(View.VISIBLE);
-
-                    onRestart();
-                    onStart();
-
-                    Toast toast = Toast.makeText(getApplicationContext(), "File successfully moved.", Toast.LENGTH_SHORT);
-                    toast.show();
-                } else {
-                    makeText(getApplicationContext(), "Something went wrong", Toast.LENGTH_SHORT).show();
-                    gridView.setVisibility(View.GONE);
-                    listView.setVisibility(View.VISIBLE);
-                    onRestart();
-                    onStart();
-                }
-
-            }
-
-        });
-
-        this.newFolderButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                makeFolder();
-            }
-        });
     }
 
     /**
@@ -193,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
+            case MY_PERMISSIONS_REQUEST: {
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
@@ -207,6 +121,128 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
+    }
+
+    /**
+     * On start method that occurs after onCreate
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        loadFileList();
+        this.myFolders = new ArrayList<>();
+        getFolders(basePath);
+
+        this.setUpListViewEventHandlers();
+
+        this.setUpGridView();
+
+        this.newFolderButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                makeFolder();
+            }
+        });
+    }
+
+    /**
+     * Sets up the grid view.
+     */
+    private void setUpGridView() {
+        ArrayAdapter<File> folderAdapter = new ArrayAdapter<File>(this,
+                android.R.layout.simple_list_item_activated_1, android.R.id.text1, this.myFolders) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view
+                        .findViewById(android.R.id.text1);
+
+                textView.setText(myFolderItems.getFolderItemFromFile(myFolders.get(position)).getDisplayName());
+                textView.setTypeface(tf);
+
+                return view;
+            }
+        };
+
+        this.gridView.setAdapter(folderAdapter);
+
+        this.gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                String fromPath = path.getPath() + File.separator;
+                String toPath = myFolders.get(position).getPath() + File.separator;
+                boolean pass = false;
+
+                if (wasMoveClicked) {
+                    pass = fileOps.moveFile(fromPath, chosenFile, toPath);
+                } else if (wasCopyClicked) {
+                    pass = fileOps.copyFile(fromPath, chosenFile, toPath);
+                }
+
+                if (pass) {
+                    Toast.makeText(getApplicationContext(), "Success", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(getApplicationContext(), "Something went wrong.", Toast.LENGTH_LONG).show();
+                }
+
+                wasMoveClicked = false;
+                wasCopyClicked = false;
+
+                onRestart();
+                onStart();
+                hideMoveView();
+
+            }
+
+        });
+    }
+
+    /**
+     * Sets up event handlers for list view.
+     */
+    private void setUpListViewEventHandlers() {
+        this.listView.setAdapter(adapter);
+        this.listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                chosenFile = fileList[position].toString();
+
+                File sel = new File(path + "/" + chosenFile);
+
+                if (sel.isDirectory()) {
+
+                    showFolderOptions(sel);
+
+                } else if (chosenFile.equalsIgnoreCase("up") && !sel.exists()) {
+
+                    String s = str.remove(str.size() - 1);
+
+                    path = new File(path.toString().substring(0, path.toString().lastIndexOf(s)));
+                    fileList = null;
+
+                    if (str.isEmpty()) {
+                        firstLvl = true;
+                    }
+                    loadFileList();
+
+                    onRestart();
+                    onStart();
+                    Log.d(TAG, path.getAbsolutePath());
+
+                } else {
+
+                    showFileOptions();
+                    loadFileList();
+                    onRestart();
+                    onStart();
+                    Log.d(TAG, path.getAbsolutePath());
+                }
+            }
+        });
     }
 
     /**
@@ -226,80 +262,82 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "pass mkDirs");
         }
 
-        // Checks whether path exists
         if (!path.exists()) {
             Log.e(TAG, "path does not exist");
-        } else {
-
-            /*
-            FilenameFilter filter = new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String filename) {
-                    File sel = new File(dir, filename);
-                    // Filters based on whether the file is hidden or not
-                    return (sel.isFile() || sel.isDirectory())
-                            && !sel.isHidden();
-
-                }
-            };
-
-            */
-
-
-            String[] fList = path.list();
-
-            if (fList == null) {
-                return;
-            }
-
-            fileList = new Item[fList.length];
-
-            for (int i = 0; i < fList.length; i++) {
-                fileList[i] = new Item(fList[i], R.drawable.file_icon);
-
-                // Convert into file path
-                File sel = new File(path, fList[i]);
-
-                // Set drawables
-                if (sel.isDirectory()) {
-                    fileList[i].icon = R.drawable.directory_icon;
-                    Log.d("DIRECTORY", fileList[i].file);
-                } else {
-                    Log.d("FILE", fileList[i].file);
-                }
-            }
-
-            if (!firstLvl) {
-                Item temp[] = new Item[fileList.length + 1];
-                System.arraycopy(fileList, 0, temp, 1, fileList.length);
-                temp[0] = new Item("Up", R.drawable.directory_up);
-                fileList = temp;
-            }
-
-
-            adapter = new ArrayAdapter<Item>(this,
-                    android.R.layout.select_dialog_item, android.R.id.text1,
-                    fileList) {
-                @NonNull
-                @Override
-                public View getView(int position, View convertView, @NonNull ViewGroup parent) {
-
-                    View view = super.getView(position, convertView, parent);
-                    TextView textView = (TextView) view
-                            .findViewById(android.R.id.text1);
-
-                    textView.setCompoundDrawablesWithIntrinsicBounds(
-                            fileList[position].icon, 0, 0, 0);
-
-
-                    int dp5 = (int) (5 * getResources().getDisplayMetrics().density + 0.5f);
-                    textView.setCompoundDrawablePadding(dp5);
-
-                    return view;
-                }
-            };
+            return;
         }
 
+        String[] fList = path.list();
+
+        if (fList == null) {
+            return;
+        }
+
+        this.setIcons(fList);
+
+        this.checkIfTopLevel();
+
+        this.setUpListView();
+    }
+
+    /**
+     * Sets icons for files
+     *
+     * @param fList The list of files.
+     */
+    private void setIcons(String[] fList) {
+        fileList = new Item[fList.length];
+
+        for (int i = 0; i < fList.length; i++) {
+            fileList[i] = new Item(fList[i], 0);
+            File currFile = new File(path, fList[i]);
+
+            if (currFile.isDirectory()) {
+                fileList[i].setIcon(R.drawable.folder_np);
+            } else {
+                fileList[i].setIcon(R.drawable.file_np);
+            }
+        }
+    }
+
+    /**
+     * Checks if the current level is top-level or not, if not adds back button
+     */
+    private void checkIfTopLevel() {
+        if (!firstLvl) {
+            Item temp[] = new Item[fileList.length + 1];
+            System.arraycopy(fileList, 0, temp, 1, fileList.length);
+            temp[0] = new Item("Up", R.drawable.up_one_level_np);
+            fileList = temp;
+        }
+    }
+
+    /**
+     * Sets up the list view
+     */
+    private void setUpListView() {
+        adapter = new ArrayAdapter<Item>(this,
+                android.R.layout.select_dialog_item, android.R.id.text1,
+                fileList) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view
+                        .findViewById(android.R.id.text1);
+
+                textView.setCompoundDrawablesWithIntrinsicBounds(
+                        fileList[position].getIcon(), 0, 0, 0);
+
+                textView.setTypeface(tf);
+
+                int drawablePadding = (int) (5 * getResources().getDisplayMetrics().density + 0.5f);
+                textView.setCompoundDrawablePadding(drawablePadding);
+
+                return view;
+            }
+        };
     }
 
     /**
@@ -335,6 +373,10 @@ public class MainActivity extends AppCompatActivity {
             if (f.isDirectory() && !f.getAbsolutePath().contains(Environment.getExternalStorageDirectory() + "/Android")) {
 
                 this.myFolders.add(f);
+                String displayName = f.toString().replace("/storage/emulated/0/", "");
+                FolderItem currItem = new FolderItem(f, displayName);
+                this.myFolderItems.add(currItem);
+
                 getFolders(f);
             }
         }
@@ -350,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
 
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
-        alert.setTitle("Make New Folder");
+        alert.setTitle("Make New FolderItem");
         alert.setMessage("Type in name of new folder.");
 
         final EditText input = new EditText(this);
@@ -364,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!newDirectory.exists()) {
                     if (newDirectory.mkdir()) {
                         Context context = getApplicationContext();
-                        CharSequence text = "Folder successfully made!";
+                        CharSequence text = "FolderItem successfully made!";
                         int duration = Toast.LENGTH_SHORT;
 
                         Toast toast = makeText(context, text, duration);
@@ -373,7 +415,7 @@ public class MainActivity extends AppCompatActivity {
                         onStart();
                     } else {
                         Context context = getApplicationContext();
-                        CharSequence text = "Folder was not made. Try again.";
+                        CharSequence text = "FolderItem was not made. Try again.";
                         int duration = Toast.LENGTH_SHORT;
 
                         Toast toast = makeText(context, text, duration);
@@ -406,31 +448,16 @@ public class MainActivity extends AppCompatActivity {
 
             public void onClick(DialogInterface dialog, int whichButton) {
 
-                File file = new File(path, chosenFile);
+                boolean pass = fileOps.deleteFile(path.getPath(), chosenFile);
 
-                boolean didItWork = false;
-
-                System.out.println(path);
-                System.out.println(chosenFile);
-                System.out.println(file);
-
-                if (file.exists()) {
-
-                    try {
-                        didItWork = file.delete();
-
-                        loadFileList();
-                        onRestart();
-                        onStart();
-                    } catch (SecurityException exception) {
-                        System.out.println("File could not be deleted.");
-                    }
-
-                    if (didItWork) {
-                        Log.d(TAG, "File deleted");
-                    }
-
+                if (pass) {
+                    Toast.makeText(getApplicationContext(), "Successfully deleted", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(getApplicationContext(), "Something went wrong", Toast.LENGTH_LONG).show();
                 }
+                loadFileList();
+                onRestart();
+                onStart();
 
                 dialog.dismiss();
             }
@@ -454,48 +481,69 @@ public class MainActivity extends AppCompatActivity {
 
         final File folder = sel;
 
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
-        alert.setTitle("Folder Options");
-        alert.setMessage("Open, Move, or Delete?");
-        alert.setIcon(R.drawable.directory_icon);
-        alert.setCancelable(true);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Folder Operations");
 
+        builder.setItems(new CharSequence[]{"Open", "Move", "Copy", "Delete"},
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
 
-        alert.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
-
-            public void onClick(DialogInterface dialog, int whichButton) {
-                deleteFileFolder();
-            }
-
-        });
-        alert.setNegativeButton("Move", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                listView.setVisibility(View.GONE);
-                gridView.setVisibility(View.VISIBLE);
-            }
-        });
-
-        alert.setNeutralButton("Open", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                openDirectory(folder);
-            }
-        });
-
-
-        alert.show();
-
+                        switch (which) {
+                            case 0:
+                                openDirectory(folder);
+                                break;
+                            case 1:
+                                wasMoveClicked = true;
+                                showMoveView();
+                                break;
+                            case 2:
+                                wasCopyClicked = true;
+                                showMoveView();
+                                break;
+                            case 3:
+                                deleteFileFolder();
+                                break;
+                        }
+                    }
+                });
+        builder.create().show();
     }
 
     /**
      * Shows the options to be performed on file.
      */
     private void showFileOptions() {
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("File Operations");
+
+        builder.setItems(new CharSequence[]{"Move", "Copy", "Delete"},
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        switch (which) {
+                            case 0:
+                                wasMoveClicked = true;
+                                showMoveView();
+                                break;
+                            case 1:
+                                wasCopyClicked = true;
+                                showMoveView();
+                                break;
+                            case 2:
+                                deleteFileFolder();
+                                break;
+                        }
+                    }
+                });
+
+        builder.create().show();
+
+
+/*
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
         alert.setTitle("File Options");
         alert.setMessage("You can move or delete files");
-        alert.setIcon(R.drawable.file_icon);
+        alert.setIcon(R.drawable.file_np);
         alert.setCancelable(true);
 
         alert.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
@@ -509,8 +557,6 @@ public class MainActivity extends AppCompatActivity {
         alert.setNegativeButton("Move", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-
-                System.out.println(myFolders.size());
                 listView.setVisibility(View.GONE);
                 gridView.setVisibility(View.VISIBLE);
             }
@@ -518,7 +564,26 @@ public class MainActivity extends AppCompatActivity {
 
 
         alert.show();
+        */
 
+    }
+
+    /**
+     * Shows move view and hides main view
+     */
+    private void showMoveView() {
+        this.newFolderButton.setVisibility(View.GONE);
+        this.listView.setVisibility(View.GONE);
+        this.gridView.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * Hides move view.
+     */
+    private void hideMoveView() {
+        this.gridView.setVisibility(View.GONE);
+        this.listView.setVisibility(View.VISIBLE);
+        this.newFolderButton.setVisibility(View.VISIBLE);
     }
 
 }
