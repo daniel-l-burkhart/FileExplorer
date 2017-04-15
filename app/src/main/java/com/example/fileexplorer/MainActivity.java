@@ -43,7 +43,7 @@ import static android.widget.Toast.makeText;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "F_PATH";
-    private static final int MY_PERMISSIONS_REQUEST = 0;
+    private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 0;
 
     private ListView listView;
     private ListAdapter adapter;
@@ -88,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
                 Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 
             String[] permissionsWanted = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE};
-            ActivityCompat.requestPermissions(MainActivity.this, permissionsWanted, MY_PERMISSIONS_REQUEST);
+            ActivityCompat.requestPermissions(MainActivity.this, permissionsWanted, MY_PERMISSIONS_REQUEST_READ_CONTACTS);
 
         } else {
             onStart();
@@ -107,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST: {
+            case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
@@ -392,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
 
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
-        alert.setTitle("Make New FolderItem");
+        alert.setTitle("Make New Folder");
         alert.setMessage("Type in name of new folder.");
 
         final EditText input = new EditText(this);
@@ -406,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!newDirectory.exists()) {
                     if (newDirectory.mkdir()) {
                         Context context = getApplicationContext();
-                        CharSequence text = "FolderItem successfully made!";
+                        CharSequence text = "Folder successfully made!";
                         int duration = Toast.LENGTH_SHORT;
 
                         Toast toast = makeText(context, text, duration);
@@ -415,7 +415,7 @@ public class MainActivity extends AppCompatActivity {
                         onStart();
                     } else {
                         Context context = getApplicationContext();
-                        CharSequence text = "FolderItem was not made. Try again.";
+                        CharSequence text = "Folder was not made. Try again.";
                         int duration = Toast.LENGTH_SHORT;
 
                         Toast toast = makeText(context, text, duration);
@@ -538,34 +538,6 @@ public class MainActivity extends AppCompatActivity {
 
         builder.create().show();
 
-
-/*
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
-        alert.setTitle("File Options");
-        alert.setMessage("You can move or delete files");
-        alert.setIcon(R.drawable.file_np);
-        alert.setCancelable(true);
-
-        alert.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
-
-            public void onClick(DialogInterface dialog, int whichButton) {
-                deleteFileFolder();
-            }
-
-        });
-
-        alert.setNegativeButton("Move", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                listView.setVisibility(View.GONE);
-                gridView.setVisibility(View.VISIBLE);
-            }
-        });
-
-
-        alert.show();
-        */
-
     }
 
     /**
@@ -575,6 +547,21 @@ public class MainActivity extends AppCompatActivity {
         this.newFolderButton.setVisibility(View.GONE);
         this.listView.setVisibility(View.GONE);
         this.gridView.setVisibility(View.VISIBLE);
+
+        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+        alert.setTitle("Move/Copy");
+        alert.setMessage("Select the output directory");
+
+        alert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+
+            public void onClick(DialogInterface dialog, int whichButton) {
+
+                dialog.dismiss();
+            }
+
+        });
+
+        alert.show();
     }
 
     /**
