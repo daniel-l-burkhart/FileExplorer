@@ -41,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "F_PATH";
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 0;
+    private boolean hasPermissionBeenGranted;
 
     private ListView listView;
     private ListAdapter adapter;
@@ -70,25 +71,26 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-
-        this.fileOps = new FileOperations();
         setContentView(R.layout.activity_main);
 
         this.listView = (ListView) findViewById(R.id.listView);
         this.gridView = (GridView) findViewById(R.id.gridView);
+
         this.newFolderButton = (FloatingActionButton) findViewById(R.id.newFolderButton);
-        this.tf = Typeface.createFromAsset(getAssets(), "helvetica.ttf");
+        // Here, thisActivity is the current activity
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
 
-        if (ContextCompat.checkSelfPermission(getApplicationContext(),
-                Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(getApplicationContext(),
-                Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-
-            String[] permissionsWanted = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE};
-            ActivityCompat.requestPermissions(MainActivity.this, permissionsWanted, MY_PERMISSIONS_REQUEST_READ_CONTACTS);
-
-        } else {
+            this.hasPermissionBeenGranted = true;
             onStart();
+
+            Log.d(TAG, path.getAbsolutePath());
+
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+
             Log.d(TAG, path.getAbsolutePath());
         }
     }
@@ -108,14 +110,13 @@ public class MainActivity extends AppCompatActivity {
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                    loadFileList();
+                    this.hasPermissionBeenGranted = true;
                     onStart();
                     Log.d(TAG, path.getAbsolutePath());
 
                 } else {
                     finish();
                 }
-
             }
         }
     }
@@ -127,7 +128,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
+        if(hasPermissionBeenGranted) {
+            this.setUpApplication();
+        } else{
+
+        }
+
+    }
+
+    private void setUpApplication() {
         loadFileList();
+        this.tf = Typeface.createFromAsset(getAssets(), "helvetica.ttf");
+        this.fileOps = new FileOperations();
         this.myFolders = new ArrayList<>();
         getFolders(basePath);
 
@@ -147,6 +159,8 @@ public class MainActivity extends AppCompatActivity {
      * Sets up the grid view.
      */
     private void setUpGridView() {
+
+
         ArrayAdapter<File> folderAdapter = new ArrayAdapter<File>(this,
                 android.R.layout.simple_list_item_activated_1, android.R.id.text1, this.myFolders) {
             @NonNull
@@ -170,20 +184,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-                String fromPath = path.getPath() + File.separator;
-                String toPath = myFolders.get(position).getPath() + File.separator;
                 boolean pass = false;
 
                 if (wasMoveClicked) {
-                    pass = fileOps.moveFile(fromPath, chosenFile, toPath);
+                    pass = moveFileFolder(position);
                 } else if (wasCopyClicked) {
-
-                    if(new File(toPath+chosenFile).exists()){
-                        Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
-                        return;
-                    } else {
-                        pass = fileOps.copyFile(fromPath, chosenFile, toPath, chosenFile);
-                    }
+                   pass = copyFileFolder(position);
                 }
 
                 if (pass) {
@@ -203,12 +209,53 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private boolean copyFileFolder(int position){
+        boolean pass;
+
+        File source = new File(path.getPath() + File.separator+ chosenFile);
+        File target = new File(myFolders.get(position).getPath() + File.separator+chosenFile);
+
+        if(target.exists()){
+            Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
+            pass = false;
+        }
+        else if (source.isDirectory()){
+            pass = fileOps.copyDirectory(source, target);
+        }
+        else {
+            pass = fileOps.copyFile(source, target);
+        }
+
+        return pass;
+    }
+
+    private boolean moveFileFolder(int position) {
+        boolean result;
+        String fromPath = path.getPath() + File.separator;
+        String toPath = myFolders.get(position).getPath() + File.separator;
+
+        if (new File(toPath + chosenFile).exists()) {
+            Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
+            hideMoveView();
+            result = false;
+        }
+        else if(new File(fromPath+chosenFile).isDirectory()){
+            result = fileOps.moveFolder(fromPath, chosenFile, toPath);
+        }
+        else {
+            result = fileOps.moveFile(fromPath, chosenFile, toPath);
+        }
+
+        return result;
+    }
+
     /**
      * Sets up event handlers for list view.
      */
     private void setUpListViewEventHandlers() {
         this.listView.setAdapter(adapter);
         this.listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 chosenFile = fileList[position].toString();
@@ -216,6 +263,7 @@ public class MainActivity extends AppCompatActivity {
                 if (sel.isDirectory()) {
                     showFolderOptions(sel);
                 } else if (chosenFile.equalsIgnoreCase("up") && !sel.exists()) {
+
                     String s = str.remove(str.size() - 1);
                     path = new File(path.toString().substring(0, path.toString().lastIndexOf(s)));
                     fileList = null;
@@ -228,7 +276,7 @@ public class MainActivity extends AppCompatActivity {
                     onStart();
                     Log.d(TAG, path.getAbsolutePath());
 
-                } else {
+                } else if(!chosenFile.equalsIgnoreCase(path.getAbsolutePath())){
 
                     showFileOptions();
                     loadFileList();
@@ -258,7 +306,9 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "path does not exist");
             return;
         }
+
         String[] fList = path.list();
+
         if (fList == null) {
             return;
         }
@@ -295,9 +345,10 @@ public class MainActivity extends AppCompatActivity {
      */
     private void checkIfTopLevel() {
         if (!firstLvl) {
-            Item temp[] = new Item[fileList.length + 1];
-            System.arraycopy(fileList, 0, temp, 1, fileList.length);
-            temp[0] = new Item("Up", R.drawable.up_one_level_np);
+            Item temp[] = new Item[fileList.length + 2];
+            System.arraycopy(fileList, 0, temp, 2, fileList.length);
+            temp[0] = new Item(path.getAbsolutePath(), R.drawable.you_are_here);
+            temp[1] = new Item("Up", R.drawable.up_one_level_np);
             fileList = temp;
         }
     }
@@ -316,9 +367,12 @@ public class MainActivity extends AppCompatActivity {
                 View view = super.getView(position, convertView, parent);
                 TextView textView = (TextView) view
                         .findViewById(android.R.id.text1);
+
                 textView.setCompoundDrawablesWithIntrinsicBounds(
                         fileList[position].getIcon(), 0, 0, 0);
+
                 textView.setTypeface(tf);
+
                 int drawablePadding = (int) (5 * getResources().getDisplayMetrics().density + 0.5f);
                 textView.setCompoundDrawablePadding(drawablePadding);
 
@@ -535,6 +589,7 @@ public class MainActivity extends AppCompatActivity {
         alert.setMessage("Type in new name.");
 
         final EditText input = new EditText(this);
+        input.setText(chosenFile);
         input.setSingleLine();
         alert.setView(input);
 
@@ -542,6 +597,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int whichButton) {
                 boolean pass = false;
                 String value = input.getText().toString();
+                File from = new File(path.getPath() + File.separator + chosenFile);
+                File to = new File(path.getPath() + File.separator + value);
 
                 if (value.trim().isEmpty()) {
                     Toast.makeText(getApplicationContext(), "Invalid name", Toast.LENGTH_LONG).show();
@@ -551,7 +608,7 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(getApplicationContext(), "Name already exists.", Toast.LENGTH_LONG).show();
                         return;
                     } else {
-                        pass = fileOps.renameFile(path.getPath(), chosenFile, value);
+                        pass = fileOps.renameFolder(from, to);
                     }
 
                     if (pass) {
