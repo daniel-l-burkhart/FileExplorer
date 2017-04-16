@@ -2,7 +2,6 @@ package com.example.fileexplorer;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
@@ -32,8 +31,6 @@ import IO.FileOperations;
 import model.FolderItem;
 import model.FolderItemList;
 import model.Item;
-
-import static android.widget.Toast.makeText;
 
 /**
  * Main Activity class that runs app
@@ -180,7 +177,13 @@ public class MainActivity extends AppCompatActivity {
                 if (wasMoveClicked) {
                     pass = fileOps.moveFile(fromPath, chosenFile, toPath);
                 } else if (wasCopyClicked) {
-                    pass = fileOps.copyFile(fromPath, chosenFile, toPath);
+
+                    if(new File(toPath+chosenFile).exists()){
+                        Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
+                        return;
+                    } else {
+                        pass = fileOps.copyFile(fromPath, chosenFile, toPath, chosenFile);
+                    }
                 }
 
                 if (pass) {
@@ -195,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
                 onRestart();
                 onStart();
                 hideMoveView();
-
             }
 
         });
@@ -210,20 +212,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 chosenFile = fileList[position].toString();
-
                 File sel = new File(path + "/" + chosenFile);
-
                 if (sel.isDirectory()) {
-
                     showFolderOptions(sel);
-
                 } else if (chosenFile.equalsIgnoreCase("up") && !sel.exists()) {
-
                     String s = str.remove(str.size() - 1);
-
                     path = new File(path.toString().substring(0, path.toString().lastIndexOf(s)));
                     fileList = null;
-
                     if (str.isEmpty()) {
                         firstLvl = true;
                     }
@@ -251,24 +246,19 @@ public class MainActivity extends AppCompatActivity {
     private void loadFileList() {
 
         boolean pass = false;
-
         try {
             pass = path.mkdirs();
         } catch (SecurityException e) {
             Log.e(TAG, "unable to write on the sd card ");
         }
-
         if (pass) {
             Log.d(TAG, "pass mkDirs");
         }
-
         if (!path.exists()) {
             Log.e(TAG, "path does not exist");
             return;
         }
-
         String[] fList = path.list();
-
         if (fList == null) {
             return;
         }
@@ -326,12 +316,9 @@ public class MainActivity extends AppCompatActivity {
                 View view = super.getView(position, convertView, parent);
                 TextView textView = (TextView) view
                         .findViewById(android.R.id.text1);
-
                 textView.setCompoundDrawablesWithIntrinsicBounds(
                         fileList[position].getIcon(), 0, 0, 0);
-
                 textView.setTypeface(tf);
-
                 int drawablePadding = (int) (5 * getResources().getDisplayMetrics().density + 0.5f);
                 textView.setCompoundDrawablePadding(drawablePadding);
 
@@ -388,38 +375,32 @@ public class MainActivity extends AppCompatActivity {
      */
     private void makeFolder() {
 
-        // Dialog dialog
-
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
         alert.setTitle("Make New Folder");
         alert.setMessage("Type in name of new folder.");
 
         final EditText input = new EditText(this);
+        input.setSingleLine();
         alert.setView(input);
 
         alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String value = input.getText().toString();
 
-                File newDirectory = new File(path, value);
-                if (!newDirectory.exists()) {
-                    if (newDirectory.mkdir()) {
-                        Context context = getApplicationContext();
-                        CharSequence text = "Folder successfully made!";
-                        int duration = Toast.LENGTH_SHORT;
+                if(value.trim().isEmpty()){
+                    Toast.makeText(getApplicationContext(), "Invalid name", Toast.LENGTH_LONG).show();
+                } else {
 
-                        Toast toast = makeText(context, text, duration);
-                        toast.show();
-                        onRestart();
-                        onStart();
-                    } else {
-                        Context context = getApplicationContext();
-                        CharSequence text = "Folder was not made. Try again.";
-                        int duration = Toast.LENGTH_SHORT;
-
-                        Toast toast = makeText(context, text, duration);
-                        toast.show();
+                    File newDirectory = new File(path, value);
+                    if (!newDirectory.exists()) {
+                        if (newDirectory.mkdir()) {
+                            Toast.makeText(getApplicationContext(), "Folder successfully made!", Toast.LENGTH_LONG).show();
+                            onRestart();
+                            onStart();
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Folder was not made. Try again.", Toast.LENGTH_LONG).show();
+                        }
                     }
                 }
             }
@@ -427,7 +408,7 @@ public class MainActivity extends AppCompatActivity {
 
         alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-
+                dialog.dismiss();
             }
         });
 
@@ -441,7 +422,7 @@ public class MainActivity extends AppCompatActivity {
     private void deleteFileFolder() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
         alert.setTitle("Delete");
-        alert.setMessage("Do you want to Delete");
+        alert.setMessage("Are you sure you want to delete?\n(You cannot delete system folders).");
         alert.setIcon(R.drawable.delete);
 
         alert.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
@@ -449,7 +430,6 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int whichButton) {
 
                 boolean pass = fileOps.deleteFile(path.getPath(), chosenFile);
-
                 if (pass) {
                     Toast.makeText(getApplicationContext(), "Successfully deleted", Toast.LENGTH_LONG).show();
                 } else {
@@ -484,7 +464,7 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Folder Operations");
 
-        builder.setItems(new CharSequence[]{"Open", "Move", "Copy", "Delete"},
+        builder.setItems(new CharSequence[]{"Open", "Move", "Copy", "Delete", "Rename"},
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
 
@@ -503,6 +483,9 @@ public class MainActivity extends AppCompatActivity {
                             case 3:
                                 deleteFileFolder();
                                 break;
+                            case 4:
+                                renameFileFolder();
+                                break;
                         }
                     }
                 });
@@ -517,7 +500,7 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("File Operations");
 
-        builder.setItems(new CharSequence[]{"Move", "Copy", "Delete"},
+        builder.setItems(new CharSequence[]{"Move", "Copy", "Delete", "Rename"},
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         switch (which) {
@@ -532,12 +515,65 @@ public class MainActivity extends AppCompatActivity {
                             case 2:
                                 deleteFileFolder();
                                 break;
+                            case 3:
+                                renameFileFolder();
+                                break;
                         }
                     }
                 });
 
         builder.create().show();
+    }
 
+    /**
+     * Renames a file or folder
+     */
+    private void renameFileFolder(){
+        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+        alert.setTitle("Rename file");
+        alert.setMessage("Type in new name.");
+
+        final EditText input = new EditText(this);
+        input.setSingleLine();
+        alert.setView(input);
+
+        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                boolean pass = false;
+                String value = input.getText().toString();
+
+                if (value.trim().isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Invalid name", Toast.LENGTH_LONG).show();
+                } else {
+
+                    if (new File(path + File.separator + value).exists()) {
+                        Toast.makeText(getApplicationContext(), "Name already exists.", Toast.LENGTH_LONG).show();
+                        return;
+                    } else {
+                        pass = fileOps.renameFile(path.getPath(), chosenFile, value);
+                    }
+
+                    if (pass) {
+                        Toast.makeText(getApplicationContext(), "File renamed", Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(getApplicationContext(), "Rename unsuccessful", Toast.LENGTH_LONG).show();
+                    }
+
+                    loadFileList();
+                    onRestart();
+                    onStart();
+                }
+            }
+        });
+
+        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                dialog.dismiss();
+            }
+        });
+
+        alert.show();
     }
 
     /**

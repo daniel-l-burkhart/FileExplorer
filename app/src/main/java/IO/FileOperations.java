@@ -36,10 +36,12 @@ public class FileOperations {
      * @param outputPath The output path
      * @return True if copy was successful, false otherwise
      */
-    public boolean copyFile(String inputPath, String inputFile, String outputPath) {
+    public boolean copyFile(String inputPath, String inputFile, String outputPath, String outputFile) {
 
+        /*
+        TODO: Create output file as param. Then in MA check to see if it exists, if it does append new char sequence. pass to method with new param
+         */
         this.opStatus = false;
-
         try {
             File dir = new File(outputPath);
             if (!dir.exists()) {
@@ -47,15 +49,15 @@ public class FileOperations {
             }
 
             in = new FileInputStream(inputPath + inputFile);
-            out = new FileOutputStream(outputPath + inputFile);
+            out = new FileOutputStream(outputPath + outputFile);
 
             byte[] buffer = new byte[1024];
             int read;
             while ((read = in.read(buffer)) != -1) {
                 out.write(buffer, 0, read);
             }
-            in.close();
 
+            in.close();
             out.flush();
             out.close();
             this.opStatus = true;
@@ -67,7 +69,6 @@ public class FileOperations {
         }
 
         return opStatus;
-
     }
 
     /**
@@ -119,7 +120,6 @@ public class FileOperations {
         }
 
         return this.opStatus;
-
     }
 
     /**
@@ -135,20 +135,24 @@ public class FileOperations {
         boolean didItWork = false;
 
         if (file.exists()) {
-
             try {
                 didItWork = file.delete();
-
             } catch (SecurityException exception) {
                 Log.e(TAG, "File could not be deleted.");
             }
-
             if (didItWork) {
                 Log.d(TAG, "File deleted");
             }
         }
-
         return didItWork;
+    }
+
+    public boolean renameFile(String inputPath, String inputFile, String outputFile){
+
+        File from = new File(inputPath + File.separator + inputFile);
+        File to = new File(inputPath + File.separator + outputFile);
+
+        return from.renameTo(to);
     }
 
 }
