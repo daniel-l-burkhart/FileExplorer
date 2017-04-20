@@ -23,6 +23,9 @@ public class FileOperations {
     private OutputStream out;
     private boolean opStatus;
 
+    /**
+     * Constructor of class
+     */
     public FileOperations() {
         this.in = null;
         this.out = null;
@@ -30,46 +33,23 @@ public class FileOperations {
     }
 
     /**
-     * Copies the inputFile from the inputPath to the outputPath
+     * Moves folder
      *
      * @param inputPath  The input path
      * @param inputFile  The input file
      * @param outputPath The output path
-     * @return True if copy was successful, false otherwise
-
-    public boolean copyFile(String inputPath, String inputFile, String outputPath, String outputFile) {
-
+     * @return True if successful, false otherwise
+     */
+    public boolean moveFolder(String inputPath, String inputFile, String outputPath) {
 
         this.opStatus = false;
-        try {
-            File dir = new File(outputPath);
-            if (!dir.exists()) {
-                dir.mkdirs();
-            }
 
-            in = new FileInputStream(inputPath + inputFile);
-            out = new FileOutputStream(outputPath + outputFile);
+        File from = new File(inputPath + File.separator + inputFile);
+        File to = new File(outputPath + File.separator + inputFile);
+        this.opStatus = from.renameTo(to);
 
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
-
-            in.close();
-            out.flush();
-            out.close();
-            this.opStatus = true;
-
-        } catch (FileNotFoundException fnfe1) {
-            Log.e("File Not Found", fnfe1.getMessage());
-        } catch (Exception e) {
-            Log.e("General Exception", e.getMessage());
-        }
-
-        return opStatus;
+        return this.opStatus;
     }
-    */
 
     /**
      * Moves the inputFile from the inputPath to the outpuPath
@@ -94,20 +74,20 @@ public class FileOperations {
                 dir.mkdirs();
             }
 
-            in = new FileInputStream(inputPath + inputFile);
-            out = new FileOutputStream(outputPath + inputFile);
+            this.in = new FileInputStream(inputPath + inputFile);
+            this.out = new FileOutputStream(outputPath + inputFile);
 
             byte[] buffer = new byte[1024];
             int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
+            while ((read = this.in.read(buffer)) != -1) {
+                this.out.write(buffer, 0, read);
             }
-            in.close();
-            in = null;
+            this.in.close();
+            this.in = null;
 
-            out.flush();
-            out.close();
-            out = null;
+            this.out.flush();
+            this.out.close();
+            this.out = null;
 
             new File(inputPath + inputFile).delete();
 
@@ -122,86 +102,20 @@ public class FileOperations {
         return this.opStatus;
     }
 
-    public boolean moveFolder(String inputPath, String inputFile, String outputPath){
-        return this.moveCopyFolder(inputPath, inputFile, outputPath, null);
-    }
-
-    public boolean copyFolder(String inputPath, String inputFile, String outputPath, String outputFile){
-        return this.moveCopyFolder(inputPath, inputFile, outputPath, outputFile);
-    }
-
-    private boolean moveCopyFolder(String intputPath, String inputFile, String outputPath, String outputFile){
-
-        this.opStatus = false;
-
-        if(outputFile == null){
-            File from = new File(intputPath + File.separator + inputFile);
-            File to = new File(outputPath + File.separator + inputFile);
-            from.renameTo(to);
-        } else{
-            File to = new File(outputPath + File.separator+ outputFile);
-            this.opStatus = to.mkdir();
-        }
-
-        return this.opStatus;
-    }
-
     /**
-     * Deletes a file
+     * Renames a folder and updates all of its files paths.
      *
-     * @param inputPath The input path
-     * @param inputFile The input file
-     * @return True if file was deleted correctly.
+     * @param from The from folder name
+     * @param to   The new folder name.
+     * @return True if successful, false otherwise.
      */
-    public boolean deleteFile(String inputPath, String inputFile) {
+    public boolean renameFolder(File from, File to) {
 
-        File file = new File(inputPath, inputFile);
-
-        if(file.isDirectory()){
-            this.opStatus = FileOperations.deleteDirectory(file);
-        }
-
-        if (file.exists()) {
-            try {
-                this.opStatus = file.delete();
-            } catch (SecurityException exception) {
-                Log.e(TAG, "File could not be deleted.");
-            }
-            if (this.opStatus) {
-                Log.d(TAG, "File deleted");
-            }
-        }
-        return this.opStatus;
-    }
-
-    private static boolean deleteDirectory(File path) {
-        if (path.exists()) {
-            File[] files = path.listFiles();
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        return path.delete();
-    }
-
-    public boolean renameFile(File from, File to) {
-
-        return from.renameTo(to);
-    }
-
-    public boolean renameFolder(File from, File to){
-
-        System.out.println(from.toString());
-        System.out.println(to.toString());
-        if(!from.isDirectory()){
+        if (!from.isDirectory()) {
 
             this.opStatus = this.renameFile(from, to);
 
-        } else{
+        } else {
             if (!to.exists()) {
                 to.mkdirs();
             }
@@ -215,31 +129,49 @@ public class FileOperations {
         return this.opStatus;
     }
 
+    /**
+     * Renames file to new name
+     *
+     * @param from The from name.
+     * @param to   The to name
+     * @return True if successful, false otherwise.
+     */
+    public boolean renameFile(File from, File to) {
+
+        return from.renameTo(to);
+    }
+
+    /**
+     * Copies directory.
+     *
+     * @param sourceLocation The source location
+     * @param targetLocation The output directory
+     * @return True if succesfull, false otherwise
+     */
     public boolean copyDirectory(File sourceLocation, File targetLocation) {
 
-        if(!sourceLocation.isDirectory()){
+        if (!sourceLocation.isDirectory()) {
 
-             this.opStatus = copyFile(sourceLocation, targetLocation);
+            this.opStatus = copyFile(sourceLocation, targetLocation);
 
+        } else if (sourceLocation.equals(targetLocation)) {
+            this.opStatus = false;
         } else {
             if (!targetLocation.exists()) {
                 targetLocation.mkdirs();
             }
             String[] children = sourceLocation.list();
             for (String aChildren : children) {
-                copyDirectory(new File(sourceLocation, aChildren), new File(
-                        targetLocation, aChildren));
+                this.copyDirectory(new File(sourceLocation, aChildren), new File(targetLocation, aChildren));
             }
         }
-
         return this.opStatus;
     }
 
     /**
-     * @param sourceLocation
-     * @param targetLocation
-     * @throws FileNotFoundException
-     * @throws IOException
+     * @param sourceLocation The source location of the file
+     * @param targetLocation The destination location
+     * @return True if successful, false otherwise.
      */
     public boolean copyFile(File sourceLocation, File targetLocation) {
 
@@ -258,15 +190,60 @@ public class FileOperations {
             this.out.close();
             this.opStatus = true;
 
-        }catch(FileNotFoundException e){
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
-        } catch(IOException e){
+        } catch (IOException e) {
             System.out.println(e.getMessage());
         }
 
         return this.opStatus;
     }
 
+    /**
+     * Deletes a directory
+     *
+     * @param path The path to delete
+     * @return True if successful, false otherwise.
+     */
+    private static boolean deleteDirectory(File path) {
+        if (path.exists()) {
+            File[] files = path.listFiles();
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
+        return path.delete();
+    }
 
+    /**
+     * Deletes a file
+     *
+     * @param inputPath The input path
+     * @param inputFile The input file
+     * @return True if file was deleted correctly.
+     */
+    public boolean deleteFile(String inputPath, String inputFile) {
 
+        File file = new File(inputPath, inputFile);
+
+        if (file.isDirectory()) {
+            this.opStatus = FileOperations.deleteDirectory(file);
+        }
+
+        if (file.exists()) {
+            try {
+                this.opStatus = file.delete();
+            } catch (SecurityException exception) {
+                Log.e(TAG, "File could not be deleted.");
+            }
+            if (this.opStatus) {
+                Log.d(TAG, "File deleted");
+            }
+        }
+        return this.opStatus;
+    }
 }

@@ -71,18 +71,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        this.setContentView(R.layout.activity_main);
 
         this.listView = (ListView) findViewById(R.id.listView);
         this.gridView = (GridView) findViewById(R.id.gridView);
 
         this.newFolderButton = (FloatingActionButton) findViewById(R.id.newFolderButton);
-        // Here, thisActivity is the current activity
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
                 ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
 
             this.hasPermissionBeenGranted = true;
-            onStart();
+            this.onStart();
 
             Log.d(TAG, path.getAbsolutePath());
 
@@ -111,11 +110,11 @@ public class MainActivity extends AppCompatActivity {
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                     this.hasPermissionBeenGranted = true;
-                    onStart();
+                    this.onStart();
                     Log.d(TAG, path.getAbsolutePath());
 
                 } else {
-                    finish();
+                    this.finish();
                 }
             }
         }
@@ -128,20 +127,26 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
-        if(hasPermissionBeenGranted) {
+        if(this.hasPermissionBeenGranted) {
             this.setUpApplication();
         } else{
-
+            this.finish();
         }
 
     }
 
+    /**
+     * Sets up necessary lists and views for application.
+     */
     private void setUpApplication() {
-        loadFileList();
+
         this.tf = Typeface.createFromAsset(getAssets(), "helvetica.ttf");
+
         this.fileOps = new FileOperations();
         this.myFolders = new ArrayList<>();
-        getFolders(basePath);
+
+        this.loadFileList();
+        this.getFolders(basePath);
 
         this.setUpListViewEventHandlers();
 
@@ -156,97 +161,61 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Sets up the grid view.
+     * Loads files and sets up view in current directory
      */
-    private void setUpGridView() {
+    private void loadFileList() {
 
+        boolean pass = false;
+        try {
+            pass = path.mkdirs();
+        } catch (SecurityException e) {
+            Log.e(TAG, "unable to write on the sd card ");
+        }
+        if (pass) {
+            Log.d(TAG, "pass mkDirs");
+        }
+        if (!path.exists()) {
+            Log.e(TAG, "path does not exist");
+            return;
+        }
 
-        ArrayAdapter<File> folderAdapter = new ArrayAdapter<File>(this,
-                android.R.layout.simple_list_item_activated_1, android.R.id.text1, this.myFolders) {
-            @NonNull
-            @Override
-            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+        String[] fList = path.list();
 
-                View view = super.getView(position, convertView, parent);
-                TextView textView = (TextView) view
-                        .findViewById(android.R.id.text1);
+        if (fList == null) {
+            return;
+        }
 
-                textView.setText(myFolderItems.getFolderItemFromFile(myFolders.get(position)).getDisplayName());
-                textView.setTypeface(tf);
+        this.setIcons(fList);
 
-                return view;
-            }
-        };
+        this.checkIfTopLevel();
 
-        this.gridView.setAdapter(folderAdapter);
-
-        this.gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-
-                boolean pass = false;
-
-                if (wasMoveClicked) {
-                    pass = moveFileFolder(position);
-                } else if (wasCopyClicked) {
-                   pass = copyFileFolder(position);
-                }
-
-                if (pass) {
-                    Toast.makeText(getApplicationContext(), "Success", Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(getApplicationContext(), "Something went wrong.", Toast.LENGTH_LONG).show();
-                }
-
-                wasMoveClicked = false;
-                wasCopyClicked = false;
-
-                onRestart();
-                onStart();
-                hideMoveView();
-            }
-
-        });
+        this.setUpListView();
     }
 
-    private boolean copyFileFolder(int position){
-        boolean pass;
+    /**
+     * Gets all the folders currently in system for moving files
+     *
+     * @param root The base folder path
+     */
+    private void getFolders(File root) {
 
-        File source = new File(path.getPath() + File.separator+ chosenFile);
-        File target = new File(myFolders.get(position).getPath() + File.separator+chosenFile);
+        File[] list = root.listFiles();
 
-        if(target.exists()){
-            Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
-            pass = false;
-        }
-        else if (source.isDirectory()){
-            pass = fileOps.copyDirectory(source, target);
-        }
-        else {
-            pass = fileOps.copyFile(source, target);
-        }
+        if(list != null) {
 
-        return pass;
-    }
+            for (File f : list) {
 
-    private boolean moveFileFolder(int position) {
-        boolean result;
-        String fromPath = path.getPath() + File.separator;
-        String toPath = myFolders.get(position).getPath() + File.separator;
+                if (f.isDirectory() && !f.getAbsolutePath().contains(Environment.getExternalStorageDirectory() + "/Android")) {
 
-        if (new File(toPath + chosenFile).exists()) {
-            Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
-            hideMoveView();
-            result = false;
-        }
-        else if(new File(fromPath+chosenFile).isDirectory()){
-            result = fileOps.moveFolder(fromPath, chosenFile, toPath);
-        }
-        else {
-            result = fileOps.moveFile(fromPath, chosenFile, toPath);
+                    this.myFolders.add(f);
+                    String displayName = f.toString().replace("/storage/emulated/0/", "");
+                    FolderItem currItem = new FolderItem(f, displayName);
+                    this.myFolderItems.add(currItem);
+                    this.getFolders(f);
+                }
+            }
         }
 
-        return result;
     }
 
     /**
@@ -286,38 +255,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-    }
-
-    /**
-     * Loads files and sets up view in current directory
-     */
-    private void loadFileList() {
-
-        boolean pass = false;
-        try {
-            pass = path.mkdirs();
-        } catch (SecurityException e) {
-            Log.e(TAG, "unable to write on the sd card ");
-        }
-        if (pass) {
-            Log.d(TAG, "pass mkDirs");
-        }
-        if (!path.exists()) {
-            Log.e(TAG, "path does not exist");
-            return;
-        }
-
-        String[] fList = path.list();
-
-        if (fList == null) {
-            return;
-        }
-
-        this.setIcons(fList);
-
-        this.checkIfTopLevel();
-
-        this.setUpListView();
     }
 
     /**
@@ -382,128 +319,57 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Opens and sets up view of current directory
-     *
-     * @param sel The current directory
+     * Sets up the grid view.
      */
-    private void openDirectory(File sel) {
-        firstLvl = false;
+    private void setUpGridView() {
 
-        str.add(chosenFile);
-        fileList = null;
-        path = new File(sel + "");
 
-        loadFileList();
+        ArrayAdapter<File> folderAdapter = new ArrayAdapter<File>(this,
+                android.R.layout.simple_list_item_activated_1, android.R.id.text1, this.myFolders) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
 
-        onRestart();
-        onStart();
-        Log.d(TAG, path.getAbsolutePath());
-    }
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view
+                        .findViewById(android.R.id.text1);
 
-    /**
-     * Gets all the folders currently in system for moving files
-     *
-     * @param root The base folder path
-     */
-    private void getFolders(File root) {
+                textView.setText(myFolderItems.getFolderItemFromFile(myFolders.get(position)).getDisplayName());
+                textView.setTypeface(tf);
 
-        File[] list = root.listFiles();
-
-        for (File f : list) {
-
-            if (f.isDirectory() && !f.getAbsolutePath().contains(Environment.getExternalStorageDirectory() + "/Android")) {
-
-                this.myFolders.add(f);
-                String displayName = f.toString().replace("/storage/emulated/0/", "");
-                FolderItem currItem = new FolderItem(f, displayName);
-                this.myFolderItems.add(currItem);
-
-                getFolders(f);
+                return view;
             }
-        }
+        };
 
-    }
+        this.gridView.setAdapter(folderAdapter);
 
-    /**
-     * Makes a folder in current directory
-     */
-    private void makeFolder() {
+        this.gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+                boolean pass = false;
 
-        alert.setTitle("Make New Folder");
-        alert.setMessage("Type in name of new folder.");
-
-        final EditText input = new EditText(this);
-        input.setSingleLine();
-        alert.setView(input);
-
-        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                String value = input.getText().toString();
-
-                if(value.trim().isEmpty()){
-                    Toast.makeText(getApplicationContext(), "Invalid name", Toast.LENGTH_LONG).show();
-                } else {
-
-                    File newDirectory = new File(path, value);
-                    if (!newDirectory.exists()) {
-                        if (newDirectory.mkdir()) {
-                            Toast.makeText(getApplicationContext(), "Folder successfully made!", Toast.LENGTH_LONG).show();
-                            onRestart();
-                            onStart();
-                        } else {
-                            Toast.makeText(getApplicationContext(), "Folder was not made. Try again.", Toast.LENGTH_LONG).show();
-                        }
-                    }
+                if (wasMoveClicked) {
+                    pass = moveFileFolder(position);
+                } else if (wasCopyClicked) {
+                   pass = copyFileFolder(position);
                 }
-            }
-        });
 
-        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                dialog.dismiss();
-            }
-        });
-
-        alert.show();
-
-    }
-
-    /**
-     * Deletes file or folder
-     */
-    private void deleteFileFolder() {
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
-        alert.setTitle("Delete");
-        alert.setMessage("Are you sure you want to delete?\n(You cannot delete system folders).");
-        alert.setIcon(R.drawable.delete);
-
-        alert.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
-
-            public void onClick(DialogInterface dialog, int whichButton) {
-
-                boolean pass = fileOps.deleteFile(path.getPath(), chosenFile);
                 if (pass) {
-                    Toast.makeText(getApplicationContext(), "Successfully deleted", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), "Success", Toast.LENGTH_LONG).show();
                 } else {
-                    Toast.makeText(getApplicationContext(), "Something went wrong", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), "Something went wrong.", Toast.LENGTH_LONG).show();
                 }
-                loadFileList();
+
+                wasMoveClicked = false;
+                wasCopyClicked = false;
+
                 onRestart();
                 onStart();
-
-                dialog.dismiss();
+                hideMoveView();
             }
 
         });
-
-        alert.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-        alert.show();
     }
 
     /**
@@ -580,6 +446,162 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * Shows move view and hides main view
+     */
+    private void showMoveView() {
+        this.newFolderButton.setVisibility(View.GONE);
+        this.listView.setVisibility(View.GONE);
+        this.gridView.setVisibility(View.VISIBLE);
+
+        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+        alert.setTitle("Move/Copy");
+        alert.setMessage("Select the output directory");
+
+        alert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+
+            public void onClick(DialogInterface dialog, int whichButton) {
+
+                dialog.dismiss();
+            }
+
+        });
+
+        alert.show();
+    }
+
+    /**
+     * Hides move view.
+     */
+    private void hideMoveView() {
+        this.gridView.setVisibility(View.GONE);
+        this.listView.setVisibility(View.VISIBLE);
+        this.newFolderButton.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * Makes a folder in current directory
+     */
+    private void makeFolder() {
+
+        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+        alert.setTitle("Make New Folder");
+        alert.setMessage("Type in name of new folder.");
+
+        final EditText input = new EditText(this);
+        input.setSingleLine();
+        alert.setView(input);
+
+        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                String value = input.getText().toString();
+
+                if(value.trim().isEmpty()){
+                    Toast.makeText(getApplicationContext(), "Invalid name", Toast.LENGTH_LONG).show();
+                } else {
+
+                    File newDirectory = new File(path, value);
+                    if (!newDirectory.exists()) {
+                        if (newDirectory.mkdir()) {
+                            Toast.makeText(getApplicationContext(), "Folder successfully made!", Toast.LENGTH_LONG).show();
+                            onRestart();
+                            onStart();
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Folder was not made. Try again.", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }
+            }
+        });
+
+        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                dialog.dismiss();
+            }
+        });
+
+        alert.show();
+
+    }
+
+    /**
+     * Opens and sets up view of current directory
+     *
+     * @param sel The current directory
+     */
+    private void openDirectory(File sel) {
+        this.firstLvl = false;
+
+        this.str.add(chosenFile);
+        this.fileList = null;
+        this.path = new File(sel + "");
+
+        this.loadFileList();
+
+        this.onRestart();
+        this.onStart();
+        Log.d(TAG, path.getAbsolutePath());
+    }
+
+    /**
+     * Copies a file or folder to a different directory.
+     * @param position
+     * The position of the output directory
+     * @return
+     * True if successful, false otherwsie
+     */
+    private boolean copyFileFolder(int position){
+        boolean pass;
+
+        File source = new File(path.getPath() + File.separator+ chosenFile);
+        File targetParent = new File(myFolders.get(position).getPath());
+        File target = new File(myFolders.get(position).getPath() + File.separator+chosenFile);
+
+        if(target.exists()){
+            Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
+            pass = false;
+        } else if (targetParent.equals(source)) {
+            Toast.makeText(getApplicationContext(), "We don't like infinite recursion.", Toast.LENGTH_LONG).show();
+            pass = false;
+        }
+        else if (source.isDirectory()){
+            pass = fileOps.copyDirectory(source, target);
+        }
+        else {
+            pass = fileOps.copyFile(source, target);
+        }
+
+        return pass;
+    }
+
+    /**
+     * Moves a file or folder
+     * @param position
+     * The output directory.
+     * @return
+     * True if successful, false otherwise.
+     */
+    private boolean moveFileFolder(int position) {
+        boolean result;
+        String fromPath = path.getPath() + File.separator;
+        String toPath = myFolders.get(position).getPath() + File.separator;
+
+        if (new File(toPath + chosenFile).exists()) {
+            Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
+            hideMoveView();
+            result = false;
+        }
+        else if(new File(fromPath+chosenFile).isDirectory()){
+            result = fileOps.moveFolder(fromPath, chosenFile, toPath);
+        }
+        else {
+            result = fileOps.moveFile(fromPath, chosenFile, toPath);
+        }
+
+        return result;
+    }
+
+    /**
      * Renames a file or folder
      */
     private void renameFileFolder(){
@@ -595,7 +617,8 @@ public class MainActivity extends AppCompatActivity {
 
         alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                boolean pass = false;
+                boolean pass;
+
                 String value = input.getText().toString();
                 File from = new File(path.getPath() + File.separator + chosenFile);
                 File to = new File(path.getPath() + File.separator + value);
@@ -634,36 +657,39 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Shows move view and hides main view
+     * Deletes file or folder
      */
-    private void showMoveView() {
-        this.newFolderButton.setVisibility(View.GONE);
-        this.listView.setVisibility(View.GONE);
-        this.gridView.setVisibility(View.VISIBLE);
-
+    private void deleteFileFolder() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
-        alert.setTitle("Move/Copy");
-        alert.setMessage("Select the output directory");
+        alert.setTitle("Delete");
+        alert.setMessage("Are you sure you want to delete?\n(You cannot delete system folders).");
+        alert.setIcon(R.drawable.delete);
 
-        alert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        alert.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
 
             public void onClick(DialogInterface dialog, int whichButton) {
+
+                boolean pass = fileOps.deleteFile(path.getPath(), chosenFile);
+                if (pass) {
+                    Toast.makeText(getApplicationContext(), "Successfully deleted", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(getApplicationContext(), "Something went wrong", Toast.LENGTH_LONG).show();
+                }
+                loadFileList();
+                onRestart();
+                onStart();
 
                 dialog.dismiss();
             }
 
         });
 
+        alert.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
         alert.show();
-    }
-
-    /**
-     * Hides move view.
-     */
-    private void hideMoveView() {
-        this.gridView.setVisibility(View.GONE);
-        this.listView.setVisibility(View.VISIBLE);
-        this.newFolderButton.setVisibility(View.VISIBLE);
     }
 
 }
