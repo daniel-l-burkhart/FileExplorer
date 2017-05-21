@@ -127,9 +127,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
-        if(this.hasPermissionBeenGranted) {
+        if (this.hasPermissionBeenGranted) {
             this.setUpApplication();
-        } else{
+        } else {
             this.finish();
         }
 
@@ -201,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
 
         File[] list = root.listFiles();
 
-        if(list != null) {
+        if (list != null) {
 
             for (File f : list) {
 
@@ -245,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
                     onStart();
                     Log.d(TAG, path.getAbsolutePath());
 
-                } else if(!chosenFile.equalsIgnoreCase(path.getAbsolutePath())){
+                } else if (!chosenFile.equalsIgnoreCase(path.getAbsolutePath())) {
 
                     showFileOptions();
                     loadFileList();
@@ -352,7 +352,7 @@ public class MainActivity extends AppCompatActivity {
                 if (wasMoveClicked) {
                     pass = moveFileFolder(position);
                 } else if (wasCopyClicked) {
-                   pass = copyFileFolder(position);
+                    pass = copyFileFolder(position);
                 }
 
                 if (pass) {
@@ -496,7 +496,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String value = input.getText().toString();
 
-                if(value.trim().isEmpty()){
+                if (value.trim().isEmpty()) {
                     Toast.makeText(getApplicationContext(), "Invalid name", Toast.LENGTH_LONG).show();
                 } else {
 
@@ -545,29 +545,26 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Copies a file or folder to a different directory.
-     * @param position
-     * The position of the output directory
-     * @return
-     * True if successful, false otherwsie
+     *
+     * @param position The position of the output directory
+     * @return True if successful, false otherwsie
      */
-    private boolean copyFileFolder(int position){
+    private boolean copyFileFolder(int position) {
         boolean pass;
 
-        File source = new File(path.getPath() + File.separator+ chosenFile);
+        File source = new File(path.getPath() + File.separator + chosenFile);
         File targetParent = new File(myFolders.get(position).getPath());
-        File target = new File(myFolders.get(position).getPath() + File.separator+chosenFile);
+        File target = new File(myFolders.get(position).getPath() + File.separator + chosenFile);
 
-        if(target.exists()){
+        if (target.exists()) {
             Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
             pass = false;
         } else if (targetParent.equals(source)) {
             Toast.makeText(getApplicationContext(), "We don't like infinite recursion.", Toast.LENGTH_LONG).show();
             pass = false;
-        }
-        else if (source.isDirectory()){
+        } else if (source.isDirectory()) {
             pass = fileOps.copyDirectory(source, target);
-        }
-        else {
+        } else {
             pass = fileOps.copyFile(source, target);
         }
 
@@ -576,10 +573,9 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Moves a file or folder
-     * @param position
-     * The output directory.
-     * @return
-     * True if successful, false otherwise.
+     *
+     * @param position The output directory.
+     * @return True if successful, false otherwise.
      */
     private boolean moveFileFolder(int position) {
         boolean result;
@@ -590,11 +586,9 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "File already exists in this directory.", Toast.LENGTH_LONG).show();
             hideMoveView();
             result = false;
-        }
-        else if(new File(fromPath+chosenFile).isDirectory()){
+        } else if (new File(fromPath + chosenFile).isDirectory()) {
             result = fileOps.moveFolder(fromPath, chosenFile, toPath);
-        }
-        else {
+        } else {
             result = fileOps.moveFile(fromPath, chosenFile, toPath);
         }
 
@@ -604,7 +598,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Renames a file or folder
      */
-    private void renameFileFolder(){
+    private void renameFileFolder() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
         alert.setTitle("Rename file");
